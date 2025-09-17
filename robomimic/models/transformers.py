@@ -145,6 +145,8 @@ class CausalSelfAttention(Module):
         )
         self.register_buffer("mask", mask)
 
+        self.last_attn = None
+
     def forward(self, x):
         """
         Forward pass through Self-Attention block.
@@ -194,6 +196,8 @@ class CausalSelfAttention(Module):
         y = att @ v
         # reshape [B, NH, T, DH] -> [B, T, NH, DH] -> [B, T, NH * DH] = [B, T, D]
         y = y.transpose(1, 2).contiguous().view(B, T, D)
+
+        self.last_attn = att.detach()
 
         # pass through output layer + dropout
         y = self.nets["output"](y)
@@ -284,12 +288,16 @@ class SelfAttentionBlock(Module):
         self.nets["ln1"] = nn.LayerNorm(embed_dim)
         self.nets["ln2"] = nn.LayerNorm(embed_dim)
 
+        self.last_attn = None
+
     def forward(self, x):
         """
         Forward pass - chain self-attention + MLP blocks, with residual connections and layer norms.
         """
         x = x + self.nets["attention"](self.nets["ln1"](x))
         x = x + self.nets["mlp"](self.nets["ln2"](x))
+
+        self.last_attn = self.nets["attention"].last_attn
         return x
 
     def output_shape(self, input_shape=None):
@@ -361,6 +369,8 @@ class GPT_Backbone(Module):
         # initialize weights
         self.apply(self._init_weights)
 
+        self.last_attns = []
+
         print(
             "Created {} model with number of parameters: {}".format(
                 self.__class__.__name__, sum(p.numel() for p in self.parameters())
@@ -423,4 +433,8 @@ class GPT_Backbone(Module):
         assert inputs.shape[1:] == (self.context_length, self.embed_dim), inputs.shape
         x = self.nets["transformer"](inputs)
         transformer_output = self.nets["output_ln"](x)
+
+        self.last_attns.clear()
+        for layer in self.nets["transformer"]:
+            self.last_attns.append(layer.last_attn)
         return transformer_output

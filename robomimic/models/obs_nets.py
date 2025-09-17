@@ -1,6 +1,6 @@
 """
 Contains torch Modules that help deal with inputs consisting of multiple
-modalities. This is extremely common when networks must deal with one or 
+modalities. This is extremely common when networks must deal with one or
 more observation dictionaries, where each input dictionary can have
 observation keys of a certain modality and shape.
 
@@ -65,7 +65,7 @@ def obs_encoder_factory(
         obs_modality = ObsUtils.OBS_KEYS_TO_MODALITIES[k]
         enc_kwargs = deepcopy(ObsUtils.DEFAULT_ENCODER_KWARGS[obs_modality]) if encoder_kwargs is None else \
             deepcopy(encoder_kwargs[obs_modality])
-            
+
         # Sanity check for kwargs in case they don't exist / are None
         if enc_kwargs.get("core_kwargs", None) is None:
             enc_kwargs["core_kwargs"] = {}
@@ -91,7 +91,7 @@ def obs_encoder_factory(
             obs_randomizer_kwargs_list = [obs_randomizer_kwargs_list]
 
         rand_input_shape = obs_shape
-        for rand_class, rand_kwargs in zip(obs_randomizer_class_list, obs_randomizer_kwargs_list):            
+        for rand_class, rand_kwargs in zip(obs_randomizer_class_list, obs_randomizer_kwargs_list):
             rand = None
             if rand_class is not None:
                 rand_kwargs["input_shape"] = rand_input_shape
@@ -121,13 +121,13 @@ class ObservationEncoder(Module):
     Module that processes inputs by observation key and then concatenates the processed
     observation keys together. Each key is processed with an encoder head network.
     Call @register_obs_key to register observation keys with the encoder and then
-    finally call @make to create the encoder networks. 
+    finally call @make to create the encoder networks.
     """
     def __init__(self, feature_activation=nn.ReLU):
         """
         Args:
             feature_activation: non-linearity to apply after each obs net - defaults to ReLU. Pass
-                None to apply no activation. 
+                None to apply no activation.
         """
         super(ObservationEncoder, self).__init__()
         self.obs_shapes = OrderedDict()
@@ -140,12 +140,12 @@ class ObservationEncoder(Module):
         self._locked = False
 
     def register_obs_key(
-        self, 
+        self,
         name,
-        shape, 
-        net_class=None, 
-        net_kwargs=None, 
-        net=None, 
+        shape,
+        net_class=None,
+        net_kwargs=None,
+        net=None,
         randomizers=None,
         share_net_from=None,
     ):
@@ -163,7 +163,7 @@ class ObservationEncoder(Module):
                 instead of creating a different net
             randomizer (Randomizer instance): if provided, use this Module to augment observation keys
                 coming in to the encoder, and possibly augment the processed output as well
-            share_net_from (str): if provided, use the same instance of @net_class 
+            share_net_from (str): if provided, use the same instance of @net_class
                 as another observation key. This observation key must already exist in this encoder.
                 Warning: Note that this does not share the observation key randomizer
         """
@@ -431,7 +431,7 @@ class ObservationGroupEncoder(Module):
 
     The class takes a dictionary of dictionaries, @observation_group_shapes.
     Each key corresponds to a observation group (e.g. 'obs', 'subgoal', 'goal')
-    and each OrderedDict should be a map between modalities and 
+    and each OrderedDict should be a map between modalities and
     expected input shapes (e.g. { 'image' : (3, 120, 160) }).
     """
     def __init__(
@@ -472,7 +472,7 @@ class ObservationGroupEncoder(Module):
         # type checking
         assert isinstance(observation_group_shapes, OrderedDict)
         assert np.all([isinstance(observation_group_shapes[k], OrderedDict) for k in observation_group_shapes])
-        
+
         self.observation_group_shapes = observation_group_shapes
 
         # create an observation encoder per observation group
@@ -490,7 +490,7 @@ class ObservationGroupEncoder(Module):
 
         Args:
             inputs (dict): dictionary that maps observation groups to observation
-                dictionaries of torch.Tensor batches that agree with 
+                dictionaries of torch.Tensor batches that agree with
                 @self.observation_group_shapes. All observation groups in
                 @self.observation_group_shapes must be present, but additional
                 observation groups can also be present. Note that these are specified
@@ -541,13 +541,13 @@ class ObservationGroupEncoder(Module):
 class MIMO_MLP(Module):
     """
     Extension to MLP to accept multiple observation dictionaries as input and
-    to output dictionaries of tensors. Inputs are specified as a dictionary of 
+    to output dictionaries of tensors. Inputs are specified as a dictionary of
     observation dictionaries, with each key corresponding to an observation group.
 
     This module utilizes @ObservationGroupEncoder to process the multiple input dictionaries and
     @ObservationDecoder to generate tensor dictionaries. The default behavior
     for encoding the inputs is to process visual inputs with a learned CNN and concatenating
-    the flat encodings with the other flat inputs. The default behavior for generating 
+    the flat encodings with the other flat inputs. The default behavior for generating
     outputs is to use a linear layer branch to produce each modality separately
     (including visual outputs).
     """
@@ -556,7 +556,7 @@ class MIMO_MLP(Module):
         input_obs_group_shapes,
         output_shapes,
         layer_dims,
-        layer_func=nn.Linear, 
+        layer_func=nn.Linear,
         activation=nn.ReLU,
         encoder_kwargs=None,
     ):
@@ -681,7 +681,7 @@ class RNN_MIMO_MLP(Module):
     Structure: [encoder -> rnn -> mlp -> decoder]
 
     All temporal inputs are processed by a shared @ObservationGroupEncoder,
-    followed by an RNN, and then a per-step multi-output MLP. 
+    followed by an RNN, and then a per-step multi-output MLP.
     """
     def __init__(
         self,
@@ -716,7 +716,7 @@ class RNN_MIMO_MLP(Module):
             rnn_kwargs (dict): kwargs for the rnn model
 
             per_step (bool): if True, apply the MLP and observation decoder into @output_shapes
-                at every step of the RNN. Otherwise, apply them to the final hidden state of the 
+                at every step of the RNN. Otherwise, apply them to the final hidden state of the
                 RNN.
 
             encoder_kwargs (dict or None): If None, results in default encoder_kwargs being applied. Otherwise, should
@@ -824,7 +824,7 @@ class RNN_MIMO_MLP(Module):
         obs_group = list(self.input_obs_group_shapes.keys())[0]
         mod = list(self.input_obs_group_shapes[obs_group].keys())[0]
         T = input_shape[obs_group][mod][0]
-        TensorUtils.assert_size_at_dim(input_shape, size=T, dim=0, 
+        TensorUtils.assert_size_at_dim(input_shape, size=T, dim=0,
                 msg="RNN_MIMO_MLP: input_shape inconsistent in temporal dimension")
         # returns a dictionary instead of list since outputs are dictionaries
         return { k : [T] + list(self.output_shapes[k]) for k in self.output_shapes }
@@ -859,7 +859,7 @@ class RNN_MIMO_MLP(Module):
         assert rnn_inputs.ndim == 3  # [B, T, D]
         if self.per_step:
             return self.nets["rnn"].forward(inputs=rnn_inputs, rnn_init_state=rnn_init_state, return_state=return_state)
-        
+
         # apply MLP + decoder to last RNN output
         outputs = self.nets["rnn"].forward(inputs=rnn_inputs, rnn_init_state=rnn_init_state, return_state=return_state)
         if return_state:
@@ -926,13 +926,13 @@ class RNN_MIMO_MLP(Module):
 
 class MIMO_Transformer(Module):
     """
-    Extension to Transformer (based on GPT architecture) to accept multiple observation 
-    dictionaries as input and to output dictionaries of tensors. Inputs are specified as 
+    Extension to Transformer (based on GPT architecture) to accept multiple observation
+    dictionaries as input and to output dictionaries of tensors. Inputs are specified as
     a dictionary of observation dictionaries, with each key corresponding to an observation group.
     This module utilizes @ObservationGroupEncoder to process the multiple input dictionaries and
     @ObservationDecoder to generate tensor dictionaries. The default behavior
     for encoding the inputs is to process visual inputs with a learned CNN and concatenating
-    the flat encodings with the other flat inputs. The default behavior for generating 
+    the flat encodings with the other flat inputs. The default behavior for generating
     outputs is to use a linear layer branch to produce each modality separately
     (including visual outputs).
     """
@@ -1014,7 +1014,7 @@ class MIMO_Transformer(Module):
 
         # layer norm for embeddings
         self.nets["embed_ln"] = nn.LayerNorm(transformer_embed_dim)
-        
+
         # dropout for input embeddings
         self.nets["embed_drop"] = nn.Dropout(transformer_emb_dropout)
 
@@ -1039,6 +1039,8 @@ class MIMO_Transformer(Module):
         self.transformer_embed_dim = transformer_embed_dim
         self.transformer_sinusoidal_embedding = transformer_sinusoidal_embedding
         self.transformer_nn_parameter_for_timesteps = transformer_nn_parameter_for_timesteps
+
+        self.last_attns = []
 
     def output_shape(self, input_shape=None):
         """
@@ -1105,7 +1107,7 @@ class MIMO_Transformer(Module):
 
         return embeddings
 
-    
+
     def forward(self, **inputs):
         """
         Process each set of inputs in its own observation group.
@@ -1146,6 +1148,7 @@ class MIMO_Transformer(Module):
             transformer_outputs, self.nets["decoder"]
         )
         transformer_outputs["transformer_encoder_outputs"] = transformer_encoder_outputs
+        self.last_attns = self.nets["transformer"].last_attns
         return transformer_outputs
 
     def _to_string(self):
